@@ -2,10 +2,11 @@ import { User } from "../model/user.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResonse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
-import { cloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
+import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose"
 
-const generateTokens = asyncHandler(async(userId) => {
+const generateTokens = async(userId) => {
     try {
         const user = await User.findById(userId)
         const refreshToken = user.generateRefreshToken()
@@ -18,7 +19,7 @@ const generateTokens = asyncHandler(async(userId) => {
     } catch (error) {
         throw new ApiError(500, error, "something went wrong while generating tokens")
     }
-})
+}
 
 const registerUser = asyncHandler( async (req,res) => {
     // Register User 
@@ -48,10 +49,10 @@ const registerUser = asyncHandler( async (req,res) => {
 
     const user = await User.create({
         fullName,
-        username: username.toLowercase(),
+        username: username.toLowerCase(),
         profilePicture: profilePicture.url,
         email,
-        password
+        password,
 
     })
 
@@ -89,13 +90,15 @@ const loginUser = asyncHandler( async(req,res) => {
         throw new ApiError(400, "Invalid username or password")
     }
 
-    const {accessToken, refreshToken} = generateTokens(user._id)
+    const tokens = await generateTokens(user._id)
 
-    const loggedInUser = await User.findByIdAndUpdate(user._id, {
-            status: "online"
-        },
-        { new: true}
-    ).select("-password -refreshToken")
+    const { accessToken, refreshToken} = tokens 
+
+    if (!accessToken || !refreshToken) {
+        throw new ApiError(500, "Failed to generate access or refresh tokens");
+    }
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
     const options = {
         httpOnly: true,
@@ -384,3 +387,16 @@ const checkStatus = asyncHandler(async (req,res) => {
         )
     )
 })
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changePassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateProfilePic,
+    getUserProfile,
+    checkStatus
+}
