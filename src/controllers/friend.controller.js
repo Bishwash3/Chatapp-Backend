@@ -23,6 +23,11 @@ const addFriend = asyncHandler(async(req, res) => {
 
     const user2Id = userByusername._id
 
+    const user2Details = await User.findById(user2Id).select("username profilePicture")
+    if(!user2Details){
+        throw new ApiError(400, "User not found")
+    }
+
     const existingUser = await Friends.findOne({
         $or: [
             {user1, user2: user2Id},
@@ -41,12 +46,53 @@ const addFriend = asyncHandler(async(req, res) => {
     .json(
         new ApiResponse(
             200,
-            newFriend,
+            {
+                friendship: newFriend._id,
+                user2: {
+                    id: user2Details.username,
+                    profilePicture:  user2Details.profilePicture
+                }
+            },
             "Friend Added Succesfully"
         )
     )
 })
 
+const removeFriend = asyncHandler(async(req,res) => {
+    const user1 = req.user?.id
+    const user2 = req.params
+
+    if(!user2){
+        throw new ApiError(400, "User 2 (Friend Id) is required in params")
+    }
+
+    if(user1 === user2){
+        throw new ApiError (400, "You cannot remove yourself as friend")
+    }
+
+    const friend = await Friends.findOneAndDelete({
+        $or: [
+            {user1, user2},
+            {user1: user2, user2: user1}
+        ]
+    })
+
+    if(!friend){
+        throw new ApiError(400, "Friendship does not exists")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {},
+            "Friendship removed successfully"
+        )
+    )
+})
+
 export {
-    addFriend
+    addFriend,
+    removeFriend
 }
