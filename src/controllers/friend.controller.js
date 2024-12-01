@@ -5,7 +5,7 @@ import { Friends } from '../model/friend.model.js'
 import { User } from "../model/user.model.js"
 
 const addFriend = asyncHandler(async(req, res) => {
-    const user1 = req.user?.id  // user who is logged in
+    const user1 = req.user?._id  // user who is logged in
     const username = req.body   // user whome you want to add as friend
 
     if(!username){
@@ -59,7 +59,7 @@ const addFriend = asyncHandler(async(req, res) => {
 })
 
 const removeFriend = asyncHandler(async(req,res) => {
-    const user1 = req.user?.id
+    const user1 = req.user?._id
     const user2 = req.params
 
     if(!user2){
