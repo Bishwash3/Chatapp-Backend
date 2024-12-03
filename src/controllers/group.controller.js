@@ -3,6 +3,8 @@ import { ApiResponse } from "../utils/ApiResonse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { User } from "../model/user.model.js"
 import { Group } from "../model/group.model.js"
+import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { isValidObjectId } from "mongoose"
 
 const createGroup = asyncHandler(async(req, res) => {
     const {groupName, description, members: rawMembers} = req.body
@@ -38,31 +40,50 @@ const createGroup = asyncHandler(async(req, res) => {
 const updateGroup = asyncHandler(async(req, res) => {
     const {groupName, description} = req.body
     const {groupId} = req.params
+    const groupPictureLocalPath = req.file?.path
 
-    if(!groupId){
-        throw new ApiError(400, "Required Group Id")
+    if(!isValidObjectId(groupId)){
+        throw new ApiError(400, "Invalid ObjectId (groupId)")
     }
 
     const updatedGroupName = groupName?.trim()
     const updatedDescription = description?.trim()
 
-    if(!updatedGroupName && !updatedDescription){
+    if(!updatedGroupName && !updatedDescription && !groupPictureLocalPath){
         throw new ApiError(400, "Fields are empty to update")
     }
 
-    const group = await Group.findById({groupId})
+    const group = await Group.findById(groupId)
 
     if(!group){
         throw new ApiError(400, "Group Not Found")
     }
 
     if(req.user?._id.toString() !== group.adminId.toString()){
-        throw new ApiError(400, "You are not authorized to update group details")
+        throw new ApiError(403, "You are not authorized to update group details")
     }
 
     const updatedFields = {};
     if (updatedGroupName) updatedFields.groupName = updatedGroupName;
     if (updatedDescription) updatedFields.description = updatedDescription;
+
+    if(groupPictureLocalPath){
+    const groupProfilePicture = await uploadOnCloudinary(groupPictureLocalPath)
+    
+
+    if(!groupProfilePicture || !groupProfilePicture.url){
+        throw new ApiError(400, "something went wrong while uploading picture on cloudinary")
+    }
+
+    updatedFields.groupPicture = groupProfilePicture.url
+
+    try {
+        fs.unlinkSync(groupPictureLocalPath)
+    } catch (error) {
+        throw new ApiError(400, error.message || "failed to delete local file")
+    }
+
+    }
 
     const updatedGroupdetails = await Group.findByIdAndUpdate(
         group._id,
@@ -88,19 +109,128 @@ const updateGroup = asyncHandler(async(req, res) => {
 })
 
 const deleteGroup = asyncHandler(async(req, res) => {
-    
+    const {groupId} = req.params
+
+    if(!isValidObjectId(groupId)){
+        throw new ApiError(400, "Invalid Id (group Id)")
+    }
+
+    const group = await Group.findById(groupId)
+
+    if(!group){
+        throw new ApiError(404, "Group not found")
+    }
+
+    if(req.user?._id.toString() !== group.adminId.toString()){
+        throw new ApiError(400, "You are not authorized to delete Group")
+    }
+
+    const deleatedGroup = await Group.findByIdAndDelete(groupId)
+
+    if(!deleatedGroup){
+        throw new ApiError(500, "Failed to delete the group")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, {}, "Group deleated Succesfully")
+    )
+
 })
 
 const addMember = asyncHandler(async(req, res) => {
+        const { groupId } = req.params
+        const { userId } = req.body
+
+    if (!isValidObjectId(groupId)) {
+        throw new ApiError(400, "Invalid Group ID")
+    }
+
+    if (!isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid User ID")
+    }
+
+    const group = await Group.findById(groupId)
+    if (!group) {
+        throw new ApiError(404, "Group not found")
+    }
+
+
+    if (req.user?._id.toString() !== group.adminId.toString()) {
+        throw new ApiError(403, "You are not authorized to add members to this group")
+    }
+
+    if (group.members.includes(userId)) {
+        throw new ApiError(400, "User is already a member of the group")
+    }
+
+    group.members.push(userId)
+    await group.save()
+
     
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+        200,
+        group,
+        "Member added successfully"
+        )
+    );
 })
 
 const removeMember = asyncHandler(async(req, res) => {
-    
+    const {groupId, userId} = req.params
+
+    if(!isValidObjectId(groupId)){
+        throw new ApiError(400, "Invalid GroupID")
+    }
+
+    if(!isValidObjectId(userId)){
+        throw new ApiError(400, "Invalid GroupID")
+    }
+
+    const group = await Group.findById(groupId)
+
+    if(!group){
+        throw new ApiError(400, "Group Not Found")
+    }
+
+    if (req.user?._id.toString() !== group.adminId.toString()) {
+        throw new ApiError(403, "You are not authorized to remove members from this group");
+      }
+
+    const existingMember = group.members.some( (member) => member.userId.toString === userId)
+
+    if(!existingMember){
+        throw new ApiError(400, "User is not a member of group")
+    }
+
+    if (group.adminId.toString() === userId) {
+        throw new ApiError(400, "The group admin cannot be removed");
+      }
+
+    group.members = group.members.filter( (member) => member.userId.toString !== userId)
+    await group.save()
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {group, removedMemberId: userId},
+            "Member removed succesfully"
+        )
+    )
 })
 
 const transferAdmin = asyncHandler(async(req, res) => {
     
+})
+
+const getAllMember = asyncHandler(async(req, res) => {
+
 })
 
 export {
@@ -109,5 +239,6 @@ export {
     deleteGroup,
     addMember,
     removeMember,
-    transferAdmin
+    transferAdmin,
+    getAllMember
 }

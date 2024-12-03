@@ -4,6 +4,9 @@ const groupSchema = new mongoose.Schema(
     {
         groupName: {
             type: String,
+        },
+        groupPicture: {
+            type: String,
             required: true
         },
         description: {
