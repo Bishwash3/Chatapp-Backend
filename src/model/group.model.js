@@ -4,6 +4,7 @@ const groupSchema = new mongoose.Schema(
     {
         groupName: {
             type: String,
+            required: true
         },
         groupPicture: {
             type: String,
@@ -14,7 +15,8 @@ const groupSchema = new mongoose.Schema(
         },
         adminId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User"
+            ref: "User",
+            required: true
         },
         members: [{
             userId: {

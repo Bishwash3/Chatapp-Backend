@@ -226,11 +226,48 @@ const removeMember = asyncHandler(async(req, res) => {
 })
 
 const transferAdmin = asyncHandler(async(req, res) => {
-    
+    const {groupId, userId} = req.params
+
+    if(!isValidObjectId(groupId)){
+        throw new ApiError(400, "Invalid GroupID")
+    }
+
+    if(!isValidObjectId(userId)){
+        throw new ApiError(400, "Invalid UserID")
+    }
+
+    const group = await Group.findById(groupId)
+
+    if(!group){
+        throw new ApiError(400, "Group Not Found")
+    }
+
+    if (req.user?._id.toString() !== group.adminId.toString()) {
+        throw new ApiError(403, "You are not authorized to transfer admin rights in this group");
+      }
+
+    const isMember = group.members.some( (member) => member.toString() === userId)
+
+    if(!isMember){
+        throw new ApiError(400, "Not a group member")
+    }
+
+    group.adminId = userId
+    group.save()
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {groupId: group._id, newAdminId: userId},
+            "Admin rights Transfered succesfully"
+        )
+    )
 })
 
 const getAllMember = asyncHandler(async(req, res) => {
-
+    
 })
 
 export {
