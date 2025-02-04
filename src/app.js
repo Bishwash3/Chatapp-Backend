@@ -16,9 +16,11 @@ app.use(cookieParser())
 
 //Router Import
 import userRouter from "./router/user.router.js"
+import addFriendRouter from "./router/friend.router.js"
 
 //Router deceleration
 app.use("/api/v1/users", userRouter)
+app.use("/api/v1/users", addFriendRouter)
 
 
 export {app}
