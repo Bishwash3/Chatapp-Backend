@@ -4,7 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { User } from "../model/user.model.js"
 import { Group } from "../model/group.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
-import { isValidObjectId } from "mongoose"
+import mongoose, { isValidObjectId } from "mongoose"
 
 const createGroup = asyncHandler(async(req, res) => {
     const {groupName, description, members: rawMembers} = req.body
@@ -267,7 +267,46 @@ const transferAdmin = asyncHandler(async(req, res) => {
 })
 
 const getAllMember = asyncHandler(async(req, res) => {
-    
+    const { groupId, userId } = req.params;
+
+    if (!isValidObjectId(groupId)) {
+        throw new ApiError(400, "Invalid Group Id");
+    }
+
+    if (!isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid userId");
+    }
+
+    const group = await Group.findById(groupId).populate({
+        path: "members.userId",
+        select: "-password -__v" // Exclude sensitive fields
+    });
+
+    if (!group) {
+        throw new ApiError(404, "Group not found");
+    }
+
+    const isMember = group.members.some(member => member.userId._id.toString() === userId);
+    if (!isMember) {
+        throw new ApiError(403, "Only authorized members can access this information");
+    }
+
+    const memberList = group.members.map(member => ({
+        _id: userId._id,
+        name: userId.name, 
+        email: userId.email,
+        joinedAt: joinedAt
+    }));
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            memberList,
+            "Member fetched succesfully"
+        )
+    )
 })
 
 export {
