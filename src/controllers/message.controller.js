@@ -207,7 +207,7 @@ export const searchMessagesByGroup = asyncHandler(async (req, res) => {
   );
 });
 
-export {
+export default {
   sendMessage,
   sendGroupMessage,
   getMessages,

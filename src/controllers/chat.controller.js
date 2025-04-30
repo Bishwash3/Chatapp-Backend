@@ -135,3 +135,9 @@ export const deleteChat = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, "Chat deleted from your side successfully"));
 });
+
+export default{
+  createChat,
+  getChats,
+  deleteChat,
+}
