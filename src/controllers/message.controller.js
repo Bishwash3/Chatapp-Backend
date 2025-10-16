@@ -12,9 +12,14 @@ export const sendMessage = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Recipient and content are required");
   }
 
-  if (senderId === recipientId) {
+  if (senderId.toString() === recipientId.toString()) {
     throw new ApiError(400, "You cannot send a message to yourself");
   }
+
+   let chat = await Chat.findOne({
+    isGroupChat: false,
+    participants: { $all: [senderId, recipientId], $size: 2 },
+  });
 
   if (!chat) {
     chat = new Chat({
@@ -24,10 +29,6 @@ export const sendMessage = asyncHandler(async (req, res) => {
     await chat.save();
   }
 
-  let chat = await Chat.findOne({
-    isGroupChat: false,
-    participants: { $all: [senderId, recipientId], $size: 2 },
-  });
 
   const newMessage = new Message({
     chatId: chat._id,

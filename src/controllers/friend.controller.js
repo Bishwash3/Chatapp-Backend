@@ -6,7 +6,7 @@ import { User } from "../model/user.model.js"
 
 const addFriend = asyncHandler(async(req, res) => {
     const user1 = req.user?._id  // user who is logged in
-    const username = req.body   // user whome you want to add as friend
+    const { username } = req.body   // user whome you want to add as friend
 
     if(!username){
         throw new ApiError(400, "username is required")
