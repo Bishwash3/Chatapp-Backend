@@ -1,5 +1,6 @@
 import { Chat } from "../model/chat.model.js";
 import { Message } from "../model/message.model.js";
+import notificationController from './notification.controller.js'
 import { ApiResponse } from "../utils/ApiResonse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -47,6 +48,21 @@ export const sendMessage = asyncHandler(async (req, res) => {
   chat.lastMessage = newMessage._id;
   await chat.save();
 
+  // create notification for recipient
+  try {
+    const payload = {
+      type: 'message',
+      actor: senderId,
+      recipient: recipientId,
+      chatId: chat._id,
+      messageId: newMessage._id,
+      data: { content: content.slice(0, 100) },
+    }
+    await notificationController.createNotificationAndEmit(req.app, payload)
+  } catch (err) {
+    console.error('Failed to create message notification', err)
+  }
+
   res.status(201).json(
     new ApiResponse(201, "Message sent successfully", {
       message: newMessage,
@@ -88,6 +104,25 @@ export const sendGroupMessage = asyncHandler(async (req, res) => {
 
   chat.lastMessage = newMessage._id;
   await chat.save();
+
+  // create notifications for group participants (except sender)
+  try {
+    const recipients = chat.participants.filter(p => p.toString() !== senderId.toString())
+    for (const r of recipients) {
+      const payload = {
+        type: 'group_message',
+        actor: senderId,
+        recipient: r,
+        chatId: chat._id,
+        messageId: newMessage._id,
+        data: { content: content.slice(0, 100) },
+      }
+      // fire-and-forget
+      notificationController.createNotificationAndEmit(req.app, payload).catch(e => console.error(e))
+    }
+  } catch (err) {
+    console.error('Failed to create group message notifications', err)
+  }
 
   res.status(201).json(
     new ApiResponse(201, "Group message sent successfully", {

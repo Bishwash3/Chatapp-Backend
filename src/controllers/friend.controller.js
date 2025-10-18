@@ -2,6 +2,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResonse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { Friends } from '../model/friend.model.js'
+import notificationController from './notification.controller.js'
 import { User } from "../model/user.model.js"
 
 const addFriend = asyncHandler(async(req, res) => {
@@ -41,6 +42,19 @@ const addFriend = asyncHandler(async(req, res) => {
 
     const newFriend = await Friends.create({user1, user2: user2Id})
 
+        // create and emit notification to user2
+        try {
+            const payload = {
+                type: 'friend_request',
+                actor: user1,
+                recipient: user2Id,
+                data: { username: userByusername.username },
+            }
+            // pass express app via req.app to helper
+            await notificationController.createNotificationAndEmit(req.app, payload)
+        } catch (err) {
+            console.error('Failed to create friend notification', err)
+        }
     return res
     .status(200)
     .json(

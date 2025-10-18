@@ -104,6 +104,10 @@ io.on("connection", (socket) => {
   });
 });
 
+// expose io and connectedUsers to the express app so controllers can emit events
+app.set('io', io)
+app.set('connectedUsers', connectedUsers)
+
 
 
 connectDB()
